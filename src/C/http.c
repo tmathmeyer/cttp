@@ -244,6 +244,32 @@ void http_end_write(int socket) {
 }
 
 
+
+
+
+
+
+
+//only compiled in on testing time
+#ifdef _TESTING_
+void test_stuff() {
+    puts(">>>TESTING<<<");
+    init_mem_tester();
+    struct mallinfo init = mallinfo();
+    {
+    }
+    struct mallinfo post = mallinfo();
+    if (init.uordblks != post.uordblks) {
+        printf("unsuccessful\n");
+        print_allocated_addresses();
+        return 1;
+    } else {
+        puts("success");
+    }
+
+}
+#endif
+
 // the api_handlers are responsible for writing to
 // and closing the out sockets!
 void basic(int out, list *api_parts) {
@@ -266,27 +292,6 @@ void basic(int out, list *api_parts) {
     
     http_end_write(out);
 }
-
-//TODO remove
-#ifdef _TESTING_
-void test_stuff() {
-    puts(">>>TESTING<<<");
-    init_mem_tester();
-    struct mallinfo init = mallinfo();
-    {
-    }
-    struct mallinfo post = mallinfo();
-    if (init.uordblks != post.uordblks) {
-        printf("unsuccessful\n");
-        print_allocated_addresses();
-        return 1;
-    } else {
-        puts("success");
-    }
-
-}
-#endif
-
 
 int main() {
     scoped url_prefix_tree *test = S(_url_prefix_tree(STATIC("")));
