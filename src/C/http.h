@@ -24,8 +24,10 @@ typedef struct {
 
 url_prefix_tree *lookup(url_prefix_tree *, string *, list **);
 url_prefix_tree *_url_prefix_tree(string *prefix);
-void add_to_prefix_tree(url_prefix_tree *, string *, void (*)(int, list *));
 http_t *create_server(url_prefix_tree *, int);
+
+void add_to_prefix_tree(url_prefix_tree *, string *, void (*)(int, list *));
 void start_http_server(http_t *);
+void http_end_write(int);
 
 #endif

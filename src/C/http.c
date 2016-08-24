@@ -16,7 +16,7 @@
 #include "cref/list.h"
 
 #include "http.h"
-
+#include "http_header_parse.h"
 
 void *server_run(void *data) {
     http_t *http = data;
@@ -32,10 +32,12 @@ void *server_run(void *data) {
             perror("cant accept socket");
             exit(1);
         }
-        char dump[256];
+        char dump[256] = {0};
         int i;
-        while((i = read(client_sock, dump, 255)) == 255) {
-        }
+
+        stream_t *stream = init_stream(client_sock);
+        stream_parser(stream);
+
 
 
         list *variables = EMPTY;
@@ -243,59 +245,3 @@ void http_end_write(int socket) {
     wait(NULL);
 }
 
-
-
-
-
-
-
-
-//only compiled in on testing time
-#ifdef _TESTING_
-void test_stuff() {
-    puts(">>>TESTING<<<");
-    init_mem_tester();
-    struct mallinfo init = mallinfo();
-    {
-    }
-    struct mallinfo post = mallinfo();
-    if (init.uordblks != post.uordblks) {
-        printf("unsuccessful\n");
-        print_allocated_addresses();
-        return 1;
-    } else {
-        puts("success");
-    }
-
-}
-#endif
-
-// the api_handlers are responsible for writing to
-// and closing the out sockets!
-void basic(int out, list *api_parts) {
-    if (api_parts) {
-        print_string_list(api_parts);
-    }
-
-    char *str = "HTTP/1.1 200 OK\r\n" \
-                "Server: cttp/1.0\r\n" \
-                "Content-Type: text/html\r\n" \
-                "\r\n" \
-                "<html><h1>HELLO WORLD:  ";
-    char *end = "</h1></html>";
-    string *string = api_parts->first;
-
-
-    write(out, str, strlen(str));
-    write(out, string->str, strlen(string->str));
-    write(out, end, strlen(end));
-    
-    http_end_write(out);
-}
-
-int main() {
-    scoped url_prefix_tree *test = S(_url_prefix_tree(STATIC("")));
-    add_to_prefix_tree(test, STATIC("/get/uuid/_var"), &basic);
-    http_t *http = create_server(test, 8088);
-    start_http_server(http);
-}
