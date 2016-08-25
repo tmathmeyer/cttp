@@ -1,3 +1,0 @@
-[submodule "lib/cref"]
-	path = lib/cref
-	url = git@github.com:tmathmeyer/C-reference-count.git
