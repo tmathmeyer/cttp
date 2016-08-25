@@ -1,59 +1,69 @@
-PROJECT := httpl
+include config.mk
 
-SRC_DFS := -D__NO_FLAGS__
-binary  := build/$(PROJECT)
-library := build/lib$(PROJECT).a
-CFLAGS  := -pedantic -g -rdynamic
 
-link_libs := -lpthread
 
-src_source_files := $(wildcard src/C/*.c)
-src_object_files := $(patsubst src/C/%.c, \
-	build/obj/%.o, $(src_source_files))
+dependancies := $(wildcard deps/*)
+dependancies_target := $(patsubst deps/%, \
+	deps/%/build/exported, $(dependancies))
+dependancies_links := $(patsubst deps/%, \
+	deps/%/build/library, $(dependancies))
+dependancies_clean := $(patsubst deps/%, \
+	clean/recurse/%, $(dependancies))
+dependancies_unlink := $(patsubst deps/%, \
+	unlink/%, $(dependancies))
 
-lib_source_files := $(wildcard src/lib/C/*.c)
-lib_object_files := $(patsubst src/lib/C/%.c, \
-	build/lib/%.o, $(lib_source_files))
-lib_header_files := $(wildcard src/lib/H/*.h)
+c_source_files := $(wildcard src/C/*.c)
+compiled_source_files := $(patsubst src/C/%.c, \
+	build/obj/%.o, $(c_source_files))
 
-external_proj_names := $(wildcard lib/*)
-external_link_librs := $(patsubst lib/%, \
-	build/link/lib%.a, $(external_proj_names))
-unlink_headers      := $(patsubst lib/%, \
-	%, $(external_proj_names))
 
-.PHONY: all clean
+build: copy_exported library export_headers
 
-all: $(external_link_librs) \
-	 $(binary) library
+#build a binary if you can
+binary: build
+	@echo "$(shell pwd) binary"
+	@mkdir -p build/binary
+	@gcc -o build/binary/$(project) build/library/*.o $(link_libs)
 
-uninstall:
-	@rm /usr/local/bin/$(PROJECT)
-	@rm /usr/lib/lib$(PROJECT).a
-	@rm -r /usr/include/$(PROJECT)
 
-clean: $(unlink_headers)
-	@rm -fr build
-
-library: $(lib_object_files)
-	@ar -cq $(library) $(lib_object_files)
-
-build/lib/%.o: src/lib/C/%.c
-	@mkdir -p $(shell dirname $@)
-	gcc $(CFLAGS) -c $< -o $@ $(SRC_DFS)
-
-$(binary): $(src_object_files)
-	gcc -rdynamic -o $(binary) $(src_object_files) $(external_link_librs) $(link_libs)
-
+#build staticly linkable object file
+library: $(compiled_source_files)
+	@echo "$(shell pwd) library"
+	@mkdir -p build/library
+	@ld -o build/library/$(project).o -r $^
 build/obj/%.o: src/C/%.c
-	@mkdir -p $(shell dirname $@)
-	gcc $(CFLAGS) -c $< -o $@ $(SRC_DFS)
+	@mkdir -p build/obj
+	@gcc $(CFLAGS) -c $< -o $@
 
-build/link/lib%.a: lib/%/
-	@mkdir -p $(shell dirname $@)
-	@cd $< && make clean && make && make headers
-	@cp $<build/lib*.a build/link
-	@ln -fs ../../$<build/headers/$(shell basename $<) src/C/$(shell basename $<)
 
-$(unlink_headers):
-	@rm -rf src/C/$@
+
+# copy in dependancies headers
+FORCE:
+
+deps/%/build/exported: deps/% FORCE
+	@ln -fs ../../$@ src/C/$(shell basename $<)
+deps/%/build/library: deps/%
+	@mkdir -p build/library
+	@$(MAKE) -C $< build
+	@cp $@/*.o build/library/
+copy_exported: $(dependancies_target) $(dependancies_links)
+	@echo "$(shell pwd) copy exported"
+
+
+
+# export header files
+C/%.h: 
+	@mkdir -p build/exported
+	@cp src/$@ build/exported/
+export_headers: $(exported)
+	@echo "$(shell pwd) export headers"
+
+
+
+# recursively clean all dependancies
+unlink/%:
+	@rm -f src/C/$(shell basename $@)
+clean/recurse/%:
+	@$(MAKE) -C deps/$(shell basename $@) clean
+clean: $(dependancies_clean) $(dependancies_unlink)
+	@rm -rf build

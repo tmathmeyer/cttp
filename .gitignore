@@ -2,3 +2,4 @@
 *.swo
 build/
 src/C/cref
+lib/
