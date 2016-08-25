@@ -1,0 +1,3 @@
+[submodule "deps/cref"]
+	path = deps/cref
+	url = git@github.com:tmathmeyer/C-reference-count.git
