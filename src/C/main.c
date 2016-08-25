@@ -4,24 +4,21 @@
 
 #include "cref/types.h"
 #include "http.h"
+#include "http_syntax_macros.h"
+
 
 // the api_handlers are responsible for writing to
 // and closing the out sockets!
-void basic(int out, list *api_parts, header_t *header) {
-    char *str = "HTTP/1.1 200 OK\r\n" \
-                "Server: cttp/1.0\r\n" \
-                "Content-Type: text/html\r\n" \
-                "\r\n" \
-                "<html><h1>HELLO WORLD:  ";
+HTTP(basic) {
+    HTTP_STATUS(200, "OK", "text/html");
+    char *str = "<html><h1>HELLO WORLD:  ";
     char *end = "</h1></html>";
-    string *string = api_parts->first;
+    string *string = api->first;
 
     write(out, str, strlen(str));
     write(out, string->str, strlen(string->str));
     write(out, end, strlen(end));
-    
-    http_end_write(out);
-    L(header);
+    HTTP_DONE();
 }
 
 int main(int argc, char **argv) {
