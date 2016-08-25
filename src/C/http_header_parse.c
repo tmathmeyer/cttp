@@ -9,6 +9,9 @@
 #include <string.h>
 
 #include "http_header_parse.h"
+#include "cref/ref.h"
+#include "cref/types.h"
+#include "cref/list.h"
 
 #define CONTINUE_IF(fn) \
     do { \
@@ -73,6 +76,8 @@ stream_t *init_stream(int fd) {
 bool is_space(char c) {
     return c==' '
         || c=='\t'
+        || c==0
+        || c=='\r'
         || c=='\n';
 }
 
@@ -131,7 +136,7 @@ bool read_until_CRLF(char **location, stream_t *stream, size_t max) {
             return index > 0;
         }
         if (tmp=='\n' && crlf) {
-            (*location)[index] = 0;
+            (*location)[index-1] = 0;
             pop_char(stream, &junk);
             return true;
         }
@@ -151,8 +156,53 @@ bool read_until_CRLF(char **location, stream_t *stream, size_t max) {
     return true;
 }
 
-void stream_parser(stream_t *stream) {
-    header_t *header = calloc(1, sizeof(header_t));
+header_kv *_header_kv(string *key, string *value) {
+    header_kv *result = ref_malloc(sizeof(header_kv), 2);
+    result->key = S(key);
+    result->value = S(value);
+    result->destructor = NULL;
+    result->hashcode = NULL;
+    result->equals = NULL;
+    return result;
+}
+
+string *copy_until(char *str, char c) {
+    size_t i=0;
+    while(str[i] && str[i] != c) {
+        i++;
+    }
+    char *dest = calloc(i+1, sizeof(char));
+    memcpy(dest, str, i);
+    return _string(dest, 1);
+}
+
+void free_header(header_t *header) {
+    if (!header) {
+        return;
+    }
+    if (header->verb) {
+        free(header->verb);
+    }
+    if (header->path) {
+        free(header->path);
+    }
+    if (header->version) {
+        free(header->version);
+    }
+}
+
+header_t *_header_t() {
+    header_t *result = ref_malloc(sizeof(header_t), 1);
+    result->verb = NULL;
+    result->path = NULL;
+    result->version = NULL;
+    result->header_keys = EMPTY;
+    result->destructor = free_header;
+    return result;
+}
+
+header_t *stream_parser(stream_t *stream) {
+    header_t *header = S(_header_t());
     CONTINUE_IF(skip_spaces(stream, MAX_LOOP));
     CONTINUE_IF(read_until_space(&header->verb, stream, MAX_LOOP));
     CONTINUE_IF(skip_spaces(stream, MAX_LOOP));
@@ -160,25 +210,31 @@ void stream_parser(stream_t *stream) {
     CONTINUE_IF(skip_spaces(stream, MAX_LOOP));
     CONTINUE_IF(read_until_CRLF(&header->version, stream, MAX_LOOP));
 
-    puts(header->verb);
-    puts(header->path);
-    puts(header->version);
-
-
-    free(header->verb);
-    free(header->path);
-    free(header->version);
-
     char *c = NULL;
-    int ct = 0;
+    list *map = EMPTY;
     while(read_until_CRLF(&c, stream, 512)) {
-        printf("%s\n", c);
+        if (is_space(c[0])) {
+            continue;
+        } else {
+            string *key = S(copy_until(c, ':'));
+            char *val = c+(key->length+1);
+            while(is_space(*val)) {
+                val++;
+            }
+            string *value = S(_string(strdup(val), 1));
+            header_kv *header = _header_kv(key, value);
+            map = _list(header, map);
+            L(value);
+            L(key);
+        }
+        free(c);
+        c = NULL;
     }
-    puts("=========================");
-    if (stream->done) {
-        puts("SUCCESS");
-    }
-
+    if (c) free(c);
+    header->header_keys = S(map);
+    return header;
 fail:
-    free(header);
+    L(header);
+    return NULL;
 }
+

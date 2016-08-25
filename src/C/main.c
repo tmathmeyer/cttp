@@ -7,7 +7,7 @@
 
 // the api_handlers are responsible for writing to
 // and closing the out sockets!
-void basic(int out, list *api_parts) {
+void basic(int out, list *api_parts, header_t *header) {
     char *str = "HTTP/1.1 200 OK\r\n" \
                 "Server: cttp/1.0\r\n" \
                 "Content-Type: text/html\r\n" \
@@ -21,6 +21,7 @@ void basic(int out, list *api_parts) {
     write(out, end, strlen(end));
     
     http_end_write(out);
+    L(header);
 }
 
 int main(int argc, char **argv) {

@@ -36,18 +36,32 @@ void *server_run(void *data) {
         int i;
 
         stream_t *stream = init_stream(client_sock);
-        stream_parser(stream);
-
-
+        header_t *header = stream_parser(stream);
+        free(stream);
 
         list *variables = EMPTY;
-        url_prefix_tree *get = lookup(http->urls, STATIC("/get/uuid/12345"), &variables);
-        if (get->handler) {
-            (get->handler)(client_sock, variables);
+        string *str = S(_string(strdup(header->path), 1));
+        url_prefix_tree *get = lookup(http->urls, str, &variables);
+        L(str);
+        if (get && get->handler) {
+            (get->handler)(client_sock, variables, header);
+        } else {
+            fourOHfour(client_sock, variables, header);
         }
         L(variables);
         L(get);
     }
+}
+
+void fourOHfour(int out, list *api_parts, header_t *path) {
+    char *str = "HTTP/1.1 404 NOT FOUND\r\n" \
+                "Server: cttp/1.0\r\n" \
+                "Content-Type: text/html\r\n" \
+                "\r\n" \
+                "<html><h1>404</h1></html>";
+    write(out, str, strlen(str));
+    http_end_write(out);
+    L(path);
 }
 
 void start_http_server(http_t *http) {
@@ -136,7 +150,7 @@ url_prefix_tree *get_by_name(string *name, list *of) {
     return NULL;
 }
 
-void _recurse_add(url_prefix_tree *tree, list *url_parts, void (*h)(int, list *)) {
+void _recurse_add(url_prefix_tree *tree, list *url_parts, void (*h)(int, list *, header_t *)) {
     if (url_parts == EMPTY) {
         tree->handler = h;
         return;
@@ -169,7 +183,7 @@ void _recurse_add(url_prefix_tree *tree, list *url_parts, void (*h)(int, list *)
     _recurse_add(new, url_parts->rest, h);
 }
 
-void add_to_prefix_tree(url_prefix_tree *tree, string *url, void (*hand)(int, list *)) {
+void add_to_prefix_tree(url_prefix_tree *tree, string *url, void (*hand)(int, list *, header_t *)) {
     S(url);
     S(tree);
     scoped list *parts = split(url, "/");
