@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 #include "cref/types.h"
-#include "http.h"
-#include "http_syntax_macros.h"
+#include "cttp/http.h"
+#include "cttp/http_syntax_macros.h"
 
 
 // the api_handlers are responsible for writing to
