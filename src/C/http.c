@@ -17,6 +17,7 @@
 
 #include "http.h"
 #include "http_header_parse.h"
+#include "http_syntax_macros.h"
 
 void *server_run(void *data) {
     http_t *http = data;
@@ -48,20 +49,22 @@ void *server_run(void *data) {
         } else {
             fourOHfour(client_sock, variables, header);
         }
+        struct mallinfo info = mallinfo();
+        printf("memory consumption: %i\n", info.uordblks);
         L(variables);
         L(get);
     }
 }
 
-void fourOHfour(int out, list *api_parts, header_t *path) {
+HTTP(fourOHfour) {
     char *str = "HTTP/1.1 404 NOT FOUND\r\n" \
                 "Server: cttp/1.0\r\n" \
                 "Content-Type: text/html\r\n" \
                 "\r\n" \
                 "<html><h1>404</h1></html>";
-    write(out, str, strlen(str));
-    http_end_write(out);
-    L(path);
+    HTTP_STATUS(404, "NOT FOUND", "text/plain");
+    HTTP_WRITE(str);
+    HTTP_DONE();
 }
 
 void start_http_server(http_t *http) {

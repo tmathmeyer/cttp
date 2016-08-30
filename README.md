@@ -1,4 +1,16 @@
-build a simple C webapi!
+see test/src/C/main.c for an example API using the cttp webserver
 
-see the last three functions in src/C/http.c for an example of how this works!
-see the C-ref library for how scoped variables work, and how the address allocation debugging works
+to build and run the example, do a full checkout of the repo (with submodules!),
+then run
+cd test/
+make binary
+./build/binary/http 8080
+
+you should now be able to visit the urls:
+
+http://localhost:8080/get/uuid/... => "HELLO WORLD: ..."
+http://localhost:8080/test/file    => the test.txt file
+http://localhost:8080/...          => a 404 page
+
+where the ... are any string (excluding '/', '&', etc)
+
