@@ -14,6 +14,8 @@ struct stream_s {
     int fd_read;
     ssize_t bufsz;
     size_t bufindex;
+    size_t read;
+    size_t force_read_size;
     char buf[BUF_MAX];
     char next;
     bool done;
@@ -24,6 +26,7 @@ refstruct(header_t, {
     char *verb;
     char *path;
     char *version;
+    unsigned short err_code;
 });
 
 refstruct(header_kv, {

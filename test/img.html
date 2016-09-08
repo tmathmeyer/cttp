@@ -1,0 +1,19 @@
+<html>
+	<head>
+		<script class='jsbin' src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>
+		<script>
+function readURL(input, x) {if (input.files && input.files[0]) {var reader = new FileReader();reader.onload = function (e) {$('#'+x).attr('src', e.target.result).width(150).height(200);};reader.readAsDataURL(input.files[0]);}}
+		</script>
+	</head>
+	<body>
+		<form action='/api/post/post' method='post' enctype='multipart/form-data'>
+			<input type='file' onchange='readURL(this, "source_img");' name='source.jpg' />
+            <img id='source_img'  alt='your image'/>
+			<br />
+			<input type='file' onchange='readURL(this, "style_img");' name='style.jpg' />
+            <img id='style_img' alt='your image'/>
+			<br />
+			<input type='submit'>
+		</form>
+	</body>
+</html>

@@ -24,14 +24,37 @@ HTTP(file) {
     HTTP_DONE();
 }
 
+HTTP(posthtml) {
+    HTTP_STATUS(200, "OK", "text/html");
+    HTTP_FILE("post.html");
+    HTTP_DONE();
+}
+
+HTTP(postimg) {
+    HTTP_STATUS(200, "OK", "text/html");
+    HTTP_FILE("img.html");
+    HTTP_DONE();
+}
+
+HTTP(postrecv) {
+    HTTP_STATUS(200, "OK", "text/json");
+    HTTP_WRITE("{'content': 'data'}");
+    HTTP_DONE();
+}
+
 int main(int argc, char **argv) {
     int port = 8088;
     if (argc == 2) {
         port = atoi(argv[1]);
     }
     scoped url_prefix_tree *test = S(_url_prefix_tree(STATIC("")));
+
     add_to_prefix_tree(test, STATIC("/get/uuid/_var"), &basic);
     add_to_prefix_tree(test, STATIC("/test/file"), &file);
+    add_to_prefix_tree(test, STATIC("/api/get/post"), &posthtml);
+    add_to_prefix_tree(test, STATIC("/api/img/post"), &postimg);
+    add_to_prefix_tree(test, STATIC("/api/post/post"), &postrecv);
+
     http_t *http = create_server(test, port);
     start_http_server(http);
 }

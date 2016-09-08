@@ -33,26 +33,29 @@ void *server_run(void *data) {
             perror("cant accept socket");
             exit(1);
         }
-        char dump[256] = {0};
-        int i;
-
         stream_t *stream = init_stream(client_sock);
         header_t *header = stream_parser(stream);
-        free(stream);
+        if (header) {
+            if (header->err_code) {
+                printf("fuck: error code: %i\n", header->err_code);
+            }
 
-        list *variables = EMPTY;
-        string *str = S(_string(strdup(header->path), 1));
-        url_prefix_tree *get = lookup(http->urls, str, &variables);
-        L(str);
-        if (get && get->handler) {
-            (get->handler)(client_sock, variables, header);
-        } else {
-            fourOHfour(client_sock, variables, header);
+            list *variables = EMPTY;
+            string *str = S(_string(strdup(header->path), 1));
+            url_prefix_tree *get = lookup(http->urls, str, &variables);
+            L(str);
+            free(stream);
+
+            if (get && get->handler) {
+                (get->handler)(client_sock, variables, header);
+            } else {
+                fourOHfour(client_sock, variables, header);
+            }
+            struct mallinfo info = mallinfo();
+            printf("memory consumption: %i\n", info.uordblks);
+            L(variables);
+            L(get);
         }
-        struct mallinfo info = mallinfo();
-        printf("memory consumption: %i\n", info.uordblks);
-        L(variables);
-        L(get);
     }
 }
 
