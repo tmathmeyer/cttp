@@ -44,12 +44,12 @@ bool _get_next_char(stream_t *stream, char *write) {
         return true;
     }
     if (stream->bufindex == stream->bufsz) {
-        *write = (stream->buf)[stream->bufindex];
         stream->bufindex = 0;
         if (stream->bufsz == BUF_MAX) {
             memset(stream->buf, 0, BUF_MAX);
             stream->bufsz = read(stream->fd_read, stream->buf, BUF_MAX);
             stream->read += stream->bufsz;
+            *write = (stream->buf)[stream->bufindex++];
             LOGALL(stream);
             return true;
         }
@@ -72,14 +72,16 @@ bool pop_char(stream_t *stream, char *write) {
     }
     *write = stream->next;
 
+copy_next:
     if (!_get_next_char(stream, &stream->next)) {
         if (stream->force_read_size > stream->read) {
             usleep(10);
             memset(stream->buf, 0, BUF_MAX);
             stream->bufsz = read(stream->fd_read, stream->buf, BUF_MAX);
             stream->read += stream->bufsz;
+            stream->bufindex = 0;
             LOGALL(stream);
-            pop_char(stream, write);
+            goto copy_next;
         } else {
             stream->done = true;
         }
@@ -218,25 +220,30 @@ size_t read_to_null(stream_t *stream) {
 
 size_t read_excluding(char **buf, stream_t *src, char *pat, size_t max, bool bin) {
     *buf = calloc(sizeof(char), max);
-    size_t pat_i = 0;
+    size_t pat_len = strlen(pat);
     size_t buf_i = 0;
     char n = 0;
-    while(pop_char(src, &n)) {
-        if (n != 0 || bin) {
-            if (pat[pat_i] == 0) {
-                return buf_i;
-            } else if (pat[pat_i] == n) {
-                pat_i++;
-            } else if (pat_i != 0) {
-                for(size_t i=0; i<pat_i; i++) {
-                    (*buf)[buf_i] = pat[i];
-                    buf_i++;
+    char jnk = 0;
+    while(1) {
+        peek_char(src, &n);
+        if (n!=0 || bin) {
+            (*buf)[buf_i] = n;
+            if (buf_i >= pat_len) {
+                ssize_t index = pat_len;
+                for(; index>0; index--) {
+                    if ((*buf)[buf_i-index] != pat[pat_len-index]) {
+                        index = 0;
+                    }
                 }
-                pat_i = 0;
-            } else {
-                (*buf)[buf_i] = n;
-                buf_i++;
+                if (index != -1) {
+                    (*buf)[buf_i-pat_len] = 0;
+                    return buf_i-pat_len;
+                }
             }
+            buf_i++;
+        }
+        if (!pop_char(src, &jnk)) {
+            return buf_i;
         }
     }
     return buf_i;
@@ -393,21 +400,20 @@ header_t *stream_parser(stream_t *stream) {
         printf("searching for [%s] in stream with size %i\n", bound, i);
         i = read_excluding(&str, stream, bound, 256000, false);
         free(str);
-        if (i) {
-            printf("ERROR: shouldn't have data before first multipart boundary");
+        if (i>1) {
+            printf("ERROR: shouldn't have data before first multipart boundary: [%i]\n", i);
         } else {
             char *JUNK = NULL;
-            REPEAT(2) {
+            REPEAT(3) {
                 size_t junk_size = read_excluding(&JUNK, stream, "\r\n", 1024, false);
                 if (junk_size) {
                     printf("JUNK: [%s]\n", JUNK);
                 }
                 free(JUNK);
             }
-            char c;
-            pop_char(stream, &c);
+            read_until_CRLF(&JUNK, stream, 128);
 
-            size_t first_data_size = read_excluding(&str, stream, bound, 256000, true);
+            size_t first_data_size = read_excluding(&str, stream, bound, 128000000, true);
             if (first_data_size) {
                 puts("DATA read success, outputting to out.jpg");
                 printf("[%i]\n", first_data_size);
