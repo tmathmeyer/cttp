@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "cref/types.h"
+#include "cref/ref.h"
 #include "cttp/http.h"
 #include "cttp/http_syntax_macros.h"
 
@@ -43,6 +44,9 @@ HTTP(postrecv) {
 }
 
 int main(int argc, char **argv) {
+#ifdef debug
+    init_mem_tester();
+#endif
     int port = 8088;
     if (argc == 2) {
         port = atoi(argv[1]);

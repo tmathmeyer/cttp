@@ -28,6 +28,14 @@
 #define LOGALL(str) (void)(str)
 #endif
 
+#ifdef DEBUG
+#define calloc(a, b) calloc_trace((a), (b))
+#define malloc(a) malloc_trace((a))
+#define realloc(a, b) realloc_trace((a), (b))
+#define strdup(a) strdup_trace(a)
+#define free(a) free_trace(a)
+#endif
+
 void set_stream_force_read_size(stream_t *stream, size_t i) {
     stream->force_read_size = i;
 }
@@ -393,36 +401,61 @@ header_t *stream_parser(stream_t *stream) {
     if (bound) {
         char *val = get_key(header->header_keys, "Content-Length");
         size_t i = atoi(val);
+        free(val);
         char *str = NULL;
 
-        //debug_info(header, stream);
+        // we know the data length, make sure we read it all before returning
         set_stream_force_read_size(stream, i);
-        printf("searching for [%s] in stream with size %i\n", bound, i);
+
+        printf("multipart form boundary: [%s]\nrequest size: [%i]\n", bound, i);
+
+        // read to the next boundary, should be 1 or 0 bytes
         i = read_excluding(&str, stream, bound, 256000, false);
         free(str);
-        if (i>1) {
-            printf("ERROR: shouldn't have data before first multipart boundary: [%i]\n", i);
-        } else {
+        str = NULL;
+        if (i > 1) {
+            goto fail;
+        }
+
+        // we do not know how many files there will be, bullshit but true
+        while(1) {
+            char *multipart_header_a = NULL;
+            char *multipart_header_b = NULL;
             char *JUNK = NULL;
-            REPEAT(3) {
-                size_t junk_size = read_excluding(&JUNK, stream, "\r\n", 1024, false);
-                if (junk_size) {
-                    printf("JUNK: [%s]\n", JUNK);
-                }
+            char *data = NULL;
+            if (read_excluding(&JUNK, stream, "\r\n", 1024, false)) {
+                free(JUNK);
+                goto end_of_multipart;
+            }
+            if (!read_excluding(&multipart_header_a, stream, "\r\n", 1024, false)) {
+                free(JUNK);
+                free(multipart_header_a);
+                goto fail;
+            }
+            if (!read_excluding(&multipart_header_b, stream, "\r\n", 1024, false)) {
+                free(JUNK);
+                free(multipart_header_a);
+                free(multipart_header_b);
+                goto fail;
+            }
+            printf(">>%s\n>>%s\n", multipart_header_a, multipart_header_b);
+            free(JUNK);
+            JUNK = NULL;
+            read_until_CRLF(&JUNK, stream, 128);
+            if (JUNK) {
                 free(JUNK);
             }
-            read_until_CRLF(&JUNK, stream, 128);
 
-            size_t first_data_size = read_excluding(&str, stream, bound, 128000000, true);
-            if (first_data_size) {
-                puts("DATA read success, outputting to out.jpg");
-                printf("[%i]\n", first_data_size);
-                int fd = open("out.binary", O_WRONLY | O_CREAT);
-                write(fd, str, first_data_size);
-                close(fd);
-            }
-            free(str);
+            size_t chunk_size = read_excluding(&data, stream, bound, 128000000, true);
+
+
+
+            // eventually parse and cache this, stick it in the header, and pass it to the API
+            free(data);
+            free(multipart_header_a);
+            free(multipart_header_b);
         }
+end_of_multipart:
         i = read_to_null(stream);
         free(bound);
     } else if (application_url_encoded) {
@@ -437,8 +470,8 @@ header_t *stream_parser(stream_t *stream) {
             free(c);
             c = NULL;
         }
+        if (c) free(c);
     }
-    if (c) free(c);
     return header;
 fail:
     L(header);

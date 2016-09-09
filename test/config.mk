@@ -1,4 +1,4 @@
 project := http
-link_libs := -lpthread
-CFLAGS := -g
+link_libs := -lpthread -rdynamic
+CFLAGS := -g -rdynamic
 

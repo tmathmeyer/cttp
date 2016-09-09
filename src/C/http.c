@@ -27,6 +27,9 @@ void *server_run(void *data) {
     listen(http->_socket, 5);
     clilen = sizeof(cli_addr);
 
+#ifdef DEBUG
+    dump_valid_pointers();
+#endif
     while(http->running) {
         client_sock = accept(http->_socket, (struct sockaddr *)&cli_addr, &clilen);
         if (client_sock < 0) {
@@ -44,7 +47,7 @@ void *server_run(void *data) {
             string *str = S(_string(strdup(header->path), 1));
             url_prefix_tree *get = lookup(http->urls, str, &variables);
             L(str);
-            free(stream);
+            free_trace(stream);
 
             if (get && get->handler) {
                 (get->handler)(client_sock, variables, header);
@@ -53,6 +56,9 @@ void *server_run(void *data) {
             }
             struct mallinfo info = mallinfo();
             printf("memory consumption: %i\n", info.uordblks);
+#ifdef DEBUG
+            print_allocated_addresses();
+#endif
             L(variables);
             L(get);
         }
