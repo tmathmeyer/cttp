@@ -35,6 +35,9 @@
         write(out, str, strlen(str)); \
     } while(0)
 
+#define multipart_itr(each) \
+    multipart_t *each=NULL; list *__hdr_mp__=header->multipart; _for_each(__hdr_mp__, each)
+
 #define HTTP_FILE(path) \
     do { \
         int fd = open(path, O_RDONLY); \

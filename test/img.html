@@ -6,7 +6,7 @@ function readURL(input, x) {if (input.files && input.files[0]) {var reader = new
 		</script>
 	</head>
 	<body>
-		<form action='/api/post/post' method='post' enctype='multipart/form-data'>
+		<form action='/api/img/post' method='post' enctype='multipart/form-data'>
 			<input type='file' onchange='readURL(this, "source_img");' name='source.jpg' />
             <img id='source_img'  alt='your image'/>
 			<br />

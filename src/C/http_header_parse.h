@@ -23,10 +23,18 @@ struct stream_s {
 
 refstruct(header_t, {
     list *header_keys;
+    list *multipart;
     char *verb;
     char *path;
     char *version;
     unsigned short err_code;
+});
+
+refstruct(multipart_t, {
+    char *name;
+    char *type;
+    char *data;
+    size_t data_len;
 });
 
 refstruct(header_kv, {

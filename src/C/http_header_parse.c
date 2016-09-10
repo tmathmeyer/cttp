@@ -20,9 +20,7 @@
         } \
     } while(0)
 
-#define REPEAT(n) for(size_t ___ITR=0;___ITR<(n);___ITR++)
-
-#ifdef DEBUG
+#ifdef DEBUG_HARDCORE
 #define LOGALL(str) printf("%s", str->buf)
 #else
 #define LOGALL(str) (void)(str)
@@ -32,7 +30,6 @@
 #define calloc(a, b) calloc_trace((a), (b))
 #define malloc(a) malloc_trace((a))
 #define realloc(a, b) realloc_trace((a), (b))
-#define strdup(a) strdup_trace(a)
 #define free(a) free_trace(a)
 #endif
 
@@ -120,7 +117,8 @@ bool is_space(char c) {
 bool skip_spaces(stream_t *stream, size_t max) {
     char test;
     while(max--) {
-        if(peek_char(stream, &test)) { if (is_space(test)) {
+        if(peek_char(stream, &test)) {
+            if (is_space(test)) {
                 pop_char(stream, &test); // if space, pop to next
             } else {
                 return true;
@@ -272,7 +270,10 @@ string *copy_until(char *str, char c) {
     while(str[i] && str[i] != c) {
         i++;
     }
+#undef calloc
     char *dest = calloc(i+1, sizeof(char));
+#define calloc(a, b) calloc_trace((a), (b))
+
     memcpy(dest, str, i);
     return _string(dest, 1);
 }
@@ -293,13 +294,38 @@ void free_header(header_t *header) {
 }
 
 header_t *_header_t() {
-    header_t *result = ref_malloc(sizeof(header_t), 1);
+    header_t *result = ref_malloc(sizeof(header_t), 2);
     result->verb = NULL;
     result->path = NULL;
     result->version = NULL;
+    result->multipart = EMPTY;
     result->header_keys = EMPTY;
     result->err_code = 0;
     result->destructor = free_header;
+    return result;
+}
+
+void free_multipart(multipart_t *multipart) {
+    if (multipart->data) {
+        free(multipart->data);
+        multipart->data = NULL;
+    }
+    if (multipart->name) {
+        free(multipart->name);
+        multipart->name = NULL;
+    }
+    if (multipart->type) {
+        free(multipart->type);
+        multipart->type = NULL;
+    }
+}
+
+multipart_t *_multipart_t() {
+    multipart_t *result = ref_malloc(sizeof(header_t), 0);
+    result->name = NULL;
+    result->type = NULL;
+    result->data = NULL;
+    result->destructor = free_multipart;
     return result;
 }
 
@@ -335,6 +361,46 @@ char *get_key(list *l, char *key) {
         }
     }
     return NULL;
+}
+
+multipart_t *parse_multipart_header(char *hdr_a, char *hdr_b, char *data) {
+    multipart_t *result = _multipart_t();
+    char *hdr = hdr_a;
+    bool done_b = false;
+run_loop:
+    while(hdr) {
+        printf("parsing [%s]\n", hdr);
+        if (!strncmp(hdr, "name=\"", 6)) {
+            puts("    matched name=");
+            size_t i = 6;
+            for(; hdr[i] && hdr[i] != '"';i++);
+            hdr[i] = 0;
+            result->name = strdup(hdr+6);
+            hdr[i] = '"';
+        }
+        if (!strncmp(hdr, "Content-Type: ", 14)) {
+            puts("    matched conent");
+            size_t i = 6;
+            for(; hdr[i] && !is_space(hdr[i]);i++);
+            char old = hdr[i];
+            hdr[i] = 0;
+            result->type = strdup(hdr+6);
+            hdr[i] = old;
+        }
+        hdr = strstr(hdr, ";");
+        if (hdr && *hdr) {
+            hdr++;
+        }
+        while(hdr && *hdr && is_space(*hdr)) {
+            hdr++;
+        }
+    }
+    if (!done_b) {
+        done_b = true;
+        hdr = hdr_b;
+        goto run_loop;
+    }
+    return result;
 }
 
 header_t *stream_parser(stream_t *stream) {
@@ -417,6 +483,8 @@ header_t *stream_parser(stream_t *stream) {
             goto fail;
         }
 
+
+        list *multipart_headers = EMPTY;
         // we do not know how many files there will be, bullshit but true
         while(1) {
             char *multipart_header_a = NULL;
@@ -447,15 +515,18 @@ header_t *stream_parser(stream_t *stream) {
             }
 
             size_t chunk_size = read_excluding(&data, stream, bound, 128000000, true);
+            multipart_t *multipart =
+                parse_multipart_header(multipart_header_a, multipart_header_b, data);
+            multipart->data = data;
+            multipart->data_len = chunk_size;
 
+            multipart_headers = _list(multipart, multipart_headers);
 
-
-            // eventually parse and cache this, stick it in the header, and pass it to the API
-            free(data);
             free(multipart_header_a);
             free(multipart_header_b);
         }
 end_of_multipart:
+        header->multipart = S(multipart_headers);
         i = read_to_null(stream);
         free(bound);
     } else if (application_url_encoded) {
