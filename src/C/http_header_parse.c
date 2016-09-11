@@ -369,9 +369,7 @@ multipart_t *parse_multipart_header(char *hdr_a, char *hdr_b, char *data) {
     bool done_b = false;
 run_loop:
     while(hdr) {
-        printf("parsing [%s]\n", hdr);
         if (!strncmp(hdr, "name=\"", 6)) {
-            puts("    matched name=");
             size_t i = 6;
             for(; hdr[i] && hdr[i] != '"';i++);
             hdr[i] = 0;
@@ -379,7 +377,6 @@ run_loop:
             hdr[i] = '"';
         }
         if (!strncmp(hdr, "Content-Type: ", 14)) {
-            puts("    matched conent");
             size_t i = 6;
             for(; hdr[i] && !is_space(hdr[i]);i++);
             char old = hdr[i];
@@ -473,8 +470,6 @@ header_t *stream_parser(stream_t *stream) {
         // we know the data length, make sure we read it all before returning
         set_stream_force_read_size(stream, i);
 
-        printf("multipart form boundary: [%s]\nrequest size: [%i]\n", bound, i);
-
         // read to the next boundary, should be 1 or 0 bytes
         i = read_excluding(&str, stream, bound, 256000, false);
         free(str);
@@ -506,7 +501,6 @@ header_t *stream_parser(stream_t *stream) {
                 free(multipart_header_b);
                 goto fail;
             }
-            printf(">>%s\n>>%s\n", multipart_header_a, multipart_header_b);
             free(JUNK);
             JUNK = NULL;
             read_until_CRLF(&JUNK, stream, 128);
