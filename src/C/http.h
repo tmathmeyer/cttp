@@ -5,6 +5,7 @@
 #include "cref/types.h"
 #include "cref/list.h"
 
+#include "thread_pool.h"
 #include "http_header_parse.h"
 
 refstruct(url_prefix_tree, {
@@ -20,6 +21,7 @@ typedef struct {
     bool running;
     pthread_t _server_thread;
     url_prefix_tree *urls;
+    thread_pool_t *thread_pool;
 } http_t;
 
 

@@ -19,8 +19,41 @@
 #include "http_header_parse.h"
 #include "http_syntax_macros.h"
 
+
+http_t *http;
+void pool_task(void *client_sock_v) {
+    int client_sock = (int)client_sock_v;
+    stream_t *stream = init_stream(client_sock);
+    header_t *header = stream_parser(stream);
+    if (header) {
+        if (header->err_code) {
+            printf("fuck: error code: %i\n", header->err_code);
+        }
+
+        list *variables = EMPTY;
+        string *str = S(_string(strdup(header->path), 1));
+        url_prefix_tree *get = lookup(http->urls, str, &variables);
+        L(str);
+        free_trace(stream);
+
+        if (get && get->handler) {
+            (get->handler)(client_sock, variables, header);
+        } else {
+            fourOHfour(client_sock, variables, header);
+        }
+        struct mallinfo info = mallinfo();
+        printf("memory consumption: %i\n", info.uordblks);
+#ifdef DEBUG
+        print_allocated_addresses();
+#endif
+        L(variables);
+        L(get);
+    }
+}
+
+
 void *server_run(void *data) {
-    http_t *http = data;
+    http = data;
     int client_sock;
     struct sockaddr_in cli_addr;
     socklen_t clilen;
@@ -36,32 +69,7 @@ void *server_run(void *data) {
             perror("cant accept socket");
             exit(1);
         }
-        stream_t *stream = init_stream(client_sock);
-        header_t *header = stream_parser(stream);
-        if (header) {
-            if (header->err_code) {
-                printf("fuck: error code: %i\n", header->err_code);
-            }
-
-            list *variables = EMPTY;
-            string *str = S(_string(strdup(header->path), 1));
-            url_prefix_tree *get = lookup(http->urls, str, &variables);
-            L(str);
-            free_trace(stream);
-
-            if (get && get->handler) {
-                (get->handler)(client_sock, variables, header);
-            } else {
-                fourOHfour(client_sock, variables, header);
-            }
-            struct mallinfo info = mallinfo();
-            printf("memory consumption: %i\n", info.uordblks);
-#ifdef DEBUG
-            print_allocated_addresses();
-#endif
-            L(variables);
-            L(get);
-        }
+        schedule(http->thread_pool, pool_task, (void *)client_sock);
     }
 }
 
@@ -78,6 +86,7 @@ HTTP(fourOHfour) {
 
 void start_http_server(http_t *http) {
     http->running = true;
+    http->thread_pool = init_pools(10);
     pthread_create(&(http->_server_thread), NULL, server_run, http);
     pthread_join(http->_server_thread, NULL);
 }
