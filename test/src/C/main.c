@@ -69,15 +69,16 @@ int main(int argc, char **argv) {
     if (argc == 2) {
         port = atoi(argv[1]);
     }
-    scoped url_prefix_tree *test = S(_url_prefix_tree(STATIC("")));
 
-    add_to_prefix_tree(test, STATIC("/get/uuid/_var"), &basic);
-    add_to_prefix_tree(test, STATIC("/test/file"), &file);
-    add_to_prefix_tree(test, STATIC("/api/get/post"), &posthtml);
-    add_to_prefix_tree(test, STATIC("/api/img/get"), &postimg);
-    add_to_prefix_tree(test, STATIC("/api/img/post"), &recieveimages);
-    add_to_prefix_tree(test, STATIC("/api/post/post"), &postrecv);
 
-    http_t *http = create_server(test, port);
+    HTTP_ROUTE(example) {
+        PATH("/get/uuid/_var", basic);
+        PATH("/test/file", file);
+        PATH("/api/get/post", posthtml);
+        PATH("/api/img/get", postimg);
+        PATH("/api/img/post", postimg);
+        PATH("/api/post/post", postrecv);
+    }
+    http_t *http = create_server(example, port);
     start_http_server(http);
 }

@@ -153,21 +153,3 @@ void schedule(thread_pool_t *tp, void (*exec)(void *), void *data) {
     pthread_mutex_unlock(&(pool->rank));
     shift_ranking(pool);
 }
-
-void print_pools(thread_pool_t *pool) {
-    pool_t *print = pool->header;
-    while(print != print->lower) {
-        printf("pool[%i] has %i jobs\n", print->id, print->task_count);
-        printf("    addr = %p\n    next = %p\n    pref = %p\n", print, print->lower, print->higher);
-        print = print->lower;
-    }
-}
-
-void print(void *str) {
-    char *c = str;
-    printf("%s\n", c);
-}
-
-void longsleep(void *k) {
-    sleep(5);
-}

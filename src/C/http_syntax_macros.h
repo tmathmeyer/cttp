@@ -30,6 +30,15 @@
         write(out, "\r\n", 2); \
     } while(0)
 
+#define HTTP_ROUTE(tree) \
+    scoped url_prefix_tree *tree = S(_url_prefix_tree(STATIC(""))); \
+    for(url_prefix_tree *___tree_add=tree;___tree_add;___tree_add=NULL)
+
+#define PATH(str, fn) \
+    do { \
+        add_to_prefix_tree(___tree_add, STATIC(str), &fn); \
+    } while(0);
+
 #define HTTP_WRITE(str) \
     do { \
         write(out, str, strlen(str)); \

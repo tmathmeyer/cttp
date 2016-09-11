@@ -86,7 +86,7 @@ HTTP(fourOHfour) {
 
 void start_http_server(http_t *http) {
     http->running = true;
-    http->thread_pool = init_pools(10);
+    http->thread_pool = init_pools(http->pool_count);
     pthread_create(&(http->_server_thread), NULL, server_run, http);
     pthread_join(http->_server_thread, NULL);
 }
@@ -95,6 +95,7 @@ http_t *create_server(url_prefix_tree *tree, int port) {
     http_t *http = calloc(sizeof(http_t), 1);
     http->_port = port;
     http->urls = tree;
+    http->pool_count = 10;
     int server_socket = socket(PF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         free(http);

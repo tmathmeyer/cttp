@@ -21,6 +21,7 @@ typedef struct {
     bool running;
     pthread_t _server_thread;
     url_prefix_tree *urls;
+    size_t pool_count;
     thread_pool_t *thread_pool;
 } http_t;
 
